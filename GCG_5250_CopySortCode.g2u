@@ -1,0 +1,40 @@
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'GCG_5250_CopySortCode - Complete Prototype Services - copy sort code from RFQ screen to the quote header when user creates quote from build router option
+'GaryB 09/07/18
+'when user clicks on "save" Estimate/quote screen then update the sort code to that quote number
+'this is a long process - starts at Estimating / Routing & Quote Management > File > Customer RFQ > Open - then click on build router, 
+'on router screen, click lines, next screen click pricing, next screen click quote, select price, click ok, select a line click ok, then finally click "save"
+'this is where the script is placed - Estimate/Quote  screen - res0060c - hook # 28310 - res0060c-save-process-hook
+
+F.Intrinsic.Control.Try
+V.Local.sError.Declare(String, "")
+
+v.Local.sSortCode.Declare(String)
+v.Local.sRFQ.Declare(String)
+v.Local.sSQL.Declare(String)
+'open DB connection
+f.ODBC.Connection!Con.OpenCompanyConnection
+
+'hook 28310 res0060c-save-process-hook
+f.Intrinsic.Control.SelectCase(v.Caller.Hook)
+   f.Intrinsic.Control.Case(28310)
+'quote number (000001) on this screen is same as rfq number on beginning screen   
+   v.Local.sRFQ.Set(v.Passed.000001)
+   f.Intrinsic.String.Build("SELECT SORT_CODE FROM V_CUST_RFQ_HEADER WHERE RFQ = '{0}'",v.Local.sRFQ,v.Local.sSQL)
+   f.ODBC.Connection!Con.ExecuteAndReturn(v.Local.sSQL,v.Local.sSortCode)
+ 
+   f.Intrinsic.String.Concat("UPDATE QUOTE_HEADER SET CODE_SORT = '",v.Local.sSortCode.Trim,"' WHERE QUOTE_NO = '",v.Local.sRFQ,"' AND RECORD_NO LIKE '%A'",v.Local.sSQL)
+   f.ODBC.Connection!Con.Execute(v.Local.sSQL)
+f.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.Catch
+    F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+    F.Intrinsic.UI.Msgbox(V.Local.sError)
+F.Intrinsic.Control.EndTry
+
+'close DB connection
+f.ODBC.Connection!Con.Close
+Program.Sub.Main.End
